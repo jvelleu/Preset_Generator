@@ -9,7 +9,7 @@ for each Lightroom/Camera Raw preset.
 import pandas as pd
 
 ## Read data
-read_dir = "Preset_Variables.xlsx"
+read_dir = "preset_variables.xlsx"
 tones_df = pd.read_excel(read_dir,sheet_name="Tones",index_col=0)
 custom_mask_df = pd.read_excel(read_dir,sheet_name="Custom Mask Adj.",index_col=0)
 core_mask_df = pd.read_excel(read_dir,sheet_name="Core Mask Adj.",index_col=0)
