@@ -64,6 +64,8 @@ with pd.option_context('future.no_silent_downcasting', True):
     df = df.fillna(0).infer_objects(copy=False)
     #print(df)
 '''
+#print(profiles_dict['Main'])
+#print(profiles_dict['Main'][profiles_dict['Main']['Kodak Porta 400 N'].apply(lambda x: isinstance(x, str))])
 
 ## Find unique combinations of styles according to combo type
 def find_unique_combinations(df):
@@ -95,51 +97,51 @@ def combine_styles(base_df, style_lst, mask_df, tone_df, profile_df):
 ## Assemble master presets dict
 def combine_styles(base_df, style_lst, mask_df, tone_df, profile_df):
     comb_df = base_df
-    print(comb_df.dtypes)
     for style in style_lst:
-        print(mask_df[style].dtypes)
         #comb_df = comb_df + mask_df[style]
         comb_df = comb_df.add(mask_df[style], fill_value=0)
-    print(profile_df.dtypes)
     comb_df = comb_df.add(tone_df, fill_value=0).add(profile_df, fill_value=0)
     return comb_df
 
-def combine_lightDir(style_name, num_lst, df,df_L=None, df_R=None):
+def combine_light_dir(style_name, num_lst, df,df_l=None, df_r=None):
     comb_df = pd.DataFrame()
     comb_df[num_lst[0] + style_name] = df
-    if df_L is None: comb_df[num_lst[1] + style_name] = df
-    else: comb_df[num_lst[1] + style_name] = df_L
-    if df_R is None: comb_df[num_lst[2] + style_name] = df
-    else: comb_df[num_lst[2] + style_name] = df_R
+    if df_l is None: comb_df[num_lst[1] + style_name] = df
+    else: comb_df[num_lst[1] + style_name] = df_l
+    if df_r is None: comb_df[num_lst[2] + style_name] = df
+    else: comb_df[num_lst[2] + style_name] = df_r
     return comb_df
 
 preset_dict = {}
 for profile in profiles_df.columns:
     preset_dict[profile] = {}
 
+    # Break up profile dict into int & str
+    profile_df_int = profiles_dict['Main'][profiles_dict['Main'][profile].apply(lambda x: isinstance(x, int))]
+    profile_df_str = profiles_dict['Main'][profiles_dict['Main'][profile].apply(lambda x: isinstance(x, str))]
+
     # Initialize empty series
-    init_df = profiles_dict['Main'][[profile]]
+    init_df = profile_df_int
     for col in init_df.columns:
         init_df[col].values[:] = 0
     init_df = init_df[profile].astype(float)
 
     for tone in tones_df.columns:
-        edits_dict = {}
+        assem_tones_dict = {}
         prof_tone_df = profiles_dict['Main'][profile]+tones_dict['Main'][tone]
-        mask_adj_lst = []
+        edits_lst = []
         for i in range(len(combo_list)):
+            edits_dict = {}
             style_name = " ["+" | ".join(combo_list[i])+"]"     # Style name
             num = str(i+1).zfill(2)                             # Index number
             num_lst = [num, num+"L", num+"R"]                   # Light direction
 
-            # Main Edits
-            print(profiles_dict['Main'][profile])
-            main_df = combine_styles(init_df,combo_list[i], styles_dict['Main'], tones_dict['Main'][tone], profiles_dict['Main'][profile])
-            print(main_df)
-            #edits_dict['Main'] = +styles_dict['Main'][style]
-
-            # Mask Edits
             # Combine Styles
+                # Main
+            partial_main_df = combine_styles(init_df,combo_list[i], styles_dict['Main'], tones_dict['Main'][tone], profile_df_int[profile])
+            main_df = pd.concat([partial_main_df, profile_df_str[profile]])
+
+                # Masks
             base_df = styles_dict['Adj']['Base']
             adj_df = combine_styles(base_df,combo_list[i], styles_dict['Adj'], tones_dict['Adj'][tone], profiles_dict['Adj'][profile])
             vertSky_df = combine_styles(base_df,combo_list[i], styles_dict['Vert Sky'], tones_dict['Vert Sky'][tone],
@@ -156,12 +158,15 @@ for profile in profiles_df.columns:
                                         profiles_dict['Right Sky Light'][profile])
 
             # Combine Light Directions & add to dict
-            edits_dict['Adj'] = combine_lightDir(style_name, num_lst, adj_df)
-            edits_dict['Sky'] = combine_lightDir(style_name, num_lst, vertSky_df, leftSky_df, rightSky_df)
-            edits_dict['Sky Lights'] = combine_lightDir(style_name, num_lst, vertSkyLight_df, leftSkyLight_df)
+            edits_dict['Main'] = combine_light_dir(style_name, num_lst, main_df)
+            edits_dict['Adj'] = combine_light_dir(style_name, num_lst, adj_df)
+            edits_dict['Sky'] = combine_light_dir(style_name, num_lst, vertSky_df, leftSky_df, rightSky_df)
+            edits_dict['Sky Lights'] = combine_light_dir(style_name, num_lst, vertSkyLight_df, leftSkyLight_df)
+            edits_lst.append(edits_dict)
 
         # Add edits to master preset dict
-        preset_dict[profile][tone] = edits_dict
+        preset_dict[profile][tone] = edits_lst
 
-print(preset_dict['Kodak Porta 400 N']['Neutral']['Adj'])
+
+print(preset_dict['Kodak Porta 400 N']['Orange'])
 
